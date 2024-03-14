@@ -409,7 +409,10 @@ def total_market():
     units="person/Month",
     comp_type="Auxiliary",
     comp_subtype="Normal",
-    depends_on={"contacts_of_noncustomers_with_customers": 1, "fruitfulness": 1},
+    depends_on={
+        "sociability": 1, "fruitfulness": 1, "potential_customers": 1,
+        "customers": 1, "p11": 1, "total_market": 1,
+    },
 )
 def word_of_mouth_demand():
     return fruitfulness()*sociability()*potential_customers()*customers()*p11()/total_market()
@@ -427,28 +430,21 @@ def contacts_with_competitor_customers():
 
 
 @component.add(
-    name="contacts of noncustomers with competitive customers",
-    units="contact/Month",
-    comp_type="Auxiliary",
-    comp_subtype="Normal",
-    depends_on={"contacts_with_competitor_customers": 1,
-                "potential_customer_concentration": 1, "p21": 1},
-)
-def contacts_of_noncustomers_with_competitive_customers():
-    return contacts_with_competitor_customers() * potential_customer_concentration() * p21()
-
-
-@component.add(
     name="word of competitive mouth demand",
     units="person/Month",
     comp_type="Auxiliary",
     comp_subtype="Normal",
-    depends_on={"contacts_of_noncustomers_with_competitive_customers": 1, "fruitfulness": 1},
+    depends_on={
+        "sociability": 1, "fruitfulness": 1,
+        "potential_customers": 1, "competitor_customers": 1, 
+        "p21": 1, "total_market": 1
+    },
 )
 def word_of_competitive_mouth_demand():
-    return fruitfulness()*sociability()*potential_customers()*competitor_customers()*p21()/total_market()
-
-# contacts_of_noncustomers_with_competitive_customers() * fruitfulness()
+    return (
+        fruitfulness() * sociability() * potential_customers() * competitor_customers()
+        * p21() / total_market()
+    )
 
 
 @component.add(
