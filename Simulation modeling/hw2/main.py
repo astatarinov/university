@@ -20,7 +20,7 @@ component = Component()
 
 _control_vars = {
     "initial_time": lambda: 0,
-    "final_time": lambda: 450,
+    "final_time": lambda: 200,
     "time_step": lambda: 0.1,
     "saveper": lambda: 10*time_step(),
 }
@@ -114,7 +114,7 @@ def fruitfulness():
     comp_subtype="Normal",
 )
 def sociability():
-    return 100
+    return 50
 
 ### customer type proportions ###
 
@@ -365,8 +365,8 @@ def changed():
 )
 def competitor_changed():
     return (
-        fruitfulness() * sociability() * competitor_customers() * p11()
-        * market_share() * (1 - p23()*change_rate() - p21()) * leave_rate()
+        fruitfulness() * sociability() * competitor_customers() * p11() * market_share()
+        * (1 - p23() * change_rate() - p21()) * leave_rate()
     )
 
 
@@ -412,7 +412,7 @@ def total_market():
     depends_on={"contacts_of_noncustomers_with_customers": 1, "fruitfulness": 1},
 )
 def word_of_mouth_demand():
-    return contacts_of_noncustomers_with_customers() * fruitfulness()
+    return fruitfulness()*sociability()*potential_customers()*customers()*p11()/total_market()
 
 
 @component.add(
@@ -420,10 +420,10 @@ def word_of_mouth_demand():
     units="contact/Month",
     comp_type="Auxiliary",
     comp_subtype="Normal",
-    depends_on={"competitor_customers": 1, "sociability": 1},
+    depends_on={"competitor_customers": 1, "sociability": 1, "p11": 1},
 )
 def contacts_with_competitor_customers():
-    return competitor_customers() * sociability()
+    return competitor_customers() * sociability() * p11()
 
 
 @component.add(
@@ -446,7 +446,9 @@ def contacts_of_noncustomers_with_competitive_customers():
     depends_on={"contacts_of_noncustomers_with_competitive_customers": 1, "fruitfulness": 1},
 )
 def word_of_competitive_mouth_demand():
-    return contacts_of_noncustomers_with_competitive_customers() * fruitfulness()
+    return fruitfulness()*sociability()*potential_customers()*competitor_customers()*p21()/total_market()
+
+# contacts_of_noncustomers_with_competitive_customers() * fruitfulness()
 
 
 @component.add(
