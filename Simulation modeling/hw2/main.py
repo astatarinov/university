@@ -331,7 +331,7 @@ def churn_competitor():
     comp_type="Auxiliary",
     comp_subtype="Normal",
     depends_on={"competitor_customers": 1,
-                "p23": 1, "p11": 1, "p21": 1,
+                "p23": 1, "p11": 1, "p21": 1, "leave_rate": 1,
                 "change_rate": 1, "fruitfulness": 1, "sociability": 1},
 )
 def changed():
@@ -347,8 +347,8 @@ def changed():
     units="person/month",
     comp_type="Auxiliary",
     comp_subtype="Normal",
-    depends_on={"competitor_customers": 1,
-                "p23": 1, "p11": 1, "p21": 1,
+    depends_on={"competitor_customers": 1, "leave_rate": 1,
+                "p23": 1, "p11": 1, "p21": 1, "market_share": 1,
                 "change_rate": 1, "fruitfulness": 1, "sociability": 1},
 )
 def competitor_changed():
