@@ -20,8 +20,8 @@ component = Component()
 
 _control_vars = {
     "initial_time": lambda: 0,
-    "final_time": lambda: 500,
-    "time_step": lambda: 0.2,
+    "final_time": lambda: 450,
+    "time_step": lambda: 0.1,
     "saveper": lambda: 10*time_step(),
 }
 
@@ -125,7 +125,7 @@ def sociability():
     comp_subtype="Normal",
 )
 def p11():
-    return 0.1
+    return 0.2
 
 @component.add(
     name="p13",
@@ -152,7 +152,7 @@ def p21():
     comp_subtype="Normal",
 )
 def p23():
-    return 0.1
+    return 0.2
 
 ### leaving to pc rate
 @component.add(
@@ -302,6 +302,18 @@ def competitor_share():
     return competitor_customers() / total_market()
 
 
+# Proportion 
+@component.add(
+    name="proportion",
+    units="percentage",
+    comp_type="Auxiliary",
+    comp_subtype="Normal",
+    depends_on={"customers": 1, "competitor_customers": 1},
+)
+def proportion():
+    return customers() / competitor_customers()
+
+
 # our customers -> PC
 @component.add(
     name="churn",
@@ -331,7 +343,7 @@ def churn_competitor():
     comp_type="Auxiliary",
     comp_subtype="Normal",
     depends_on={"competitor_customers": 1,
-                "p23": 1, "p11": 1, "p21": 1, "leave_rate": 1,
+                "p13": 1, "p11": 1, "p21": 1, "leave_rate": 1,
                 "change_rate": 1, "fruitfulness": 1, "sociability": 1},
 )
 def changed():
