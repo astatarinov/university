@@ -2,6 +2,7 @@ from mesa import Agent, Model
 import mesa
 import numpy as np
 from itertools import combinations
+from collections import deque
 
 class PoliticalAgent(Agent):
     """An agent with fixed initial wealth."""
@@ -42,7 +43,8 @@ class PoliticalAgent(Agent):
 class PolicitalModel(Model):
     """A model with some number of agents."""
 
-    def __init__(self, N, u=1.2, u_e=0.1, p_e=0.25, mu=0.5, delta=0, pairwise=True):
+    def __init__(self, N, u=1.2, u_e=0.1, p_e=0.25, mu=0.5, delta=0, pairwise=True,
+                  max_iter = 1000, change_threshold=1e-07, conv_check_periods_num=50):
         super().__init__()
 
         assert u >= 0 and u <= 2, 'u x must be in [0, 2]'
@@ -92,6 +94,12 @@ class PolicitalModel(Model):
         self.step_sum_change = 0
         self.model_datacollector = mesa.datacollection.DataCollector(model_reporters={"Step_sum_change": "step_sum_change"})
 
+        # stopping parameters 
+        self.max_iter = max_iter
+        self.change_threshold = change_threshold
+        self.conv_check_periods_num = conv_check_periods_num
+        self.check_change_list = deque(maxlen=self.conv_check_periods_num)
+
     def calculate_pair_update(self, first: PoliticalAgent, second: PoliticalAgent):
 
         h_ij = min(first.x + first.u, second.x + second.u) - max(first.x - first.u, second.x - second.u)
@@ -124,9 +132,21 @@ class PolicitalModel(Model):
 
         self.step_sum_change = np.sum([abs(i.x_change) for i in self.schedule.agents])
 
+        self.check_change_list.append(self.step_sum_change)
+
         self.model_datacollector.collect(self) # collect changes for statistics 
 
         self.schedule.step() # apply changes 
 
         self.datacollector.collect(self) # collect agents data
 
+
+    def run(self, progress_bar=False):
+
+        for _ in range(self.max_iter):
+
+            self.step()
+
+            if len(self.check_change_list)==self.conv_check_periods_num and \
+            max(self.check_change_list) < self.change_threshold:
+                break
