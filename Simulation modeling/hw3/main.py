@@ -1,8 +1,7 @@
 from mesa import Agent, Model
 import mesa
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
+from itertools import combinations
 
 class PoliticalAgent(Agent):
     """An agent with fixed initial wealth."""
@@ -17,13 +16,23 @@ class PoliticalAgent(Agent):
         self.u = u # uncertainty lvl
         self.extremist = extremist
 
-        self.new_x = self.x
-        self.new_u = self.u
+        self.x_change = 0
+        self.u_change = 0
 
     def step(self):
         
-        self.x = self.new_x
-        self.u = self.new_u
+        self.x += self.x_change
+        self.u += self.u_change
+
+        # adj to bounds 
+        if self.x > 1:
+            self.x = 1
+        elif self.x < -1:
+            self.x = -1
+
+        self.x_change = 0
+        self.u_change = 0
+
 
     def __str__(self):
 
@@ -49,7 +58,10 @@ class PolicitalModel(Model):
         self.p_e = p_e # extr share
         self.mu = mu
         self.delta = delta
-        self.pairwise = pairwise
+        self.pairwise = pairwise # random pairs on each step if True, 1 vs all otherwise
+
+        # if "everyone with everyone", effect of each contact is multiplied on mu /(N-1) 
+        self.mu_fact_coef = self.mu if self.pairwise else self.mu / (self.num_agents - 1)
 
         # Creating agents 
         x_array = np.random.uniform(-1, 1, self.num_agents)
@@ -74,8 +86,11 @@ class PolicitalModel(Model):
             # Add the agent to the scheduler
             self.schedule.add(a)
 
-        self.datacollector = mesa.datacollection.DataCollector(agent_reporters={"X": "x"})
+        self.datacollector = mesa.datacollection.DataCollector(agent_reporters={"X": "x", "Change": "x_change"})
         self.datacollector.collect(self)
+
+        self.step_sum_change = 0
+        self.model_datacollector = mesa.datacollection.DataCollector(model_reporters={"Step_sum_change": "step_sum_change"})
 
     def calculate_pair_update(self, first: PoliticalAgent, second: PoliticalAgent):
 
@@ -83,24 +98,14 @@ class PolicitalModel(Model):
 
         if h_ij > first.u:
             
-            second.new_x = second.x + first.model.mu * (h_ij / first.u - 1) * (first.x - second.x)
-            second.new_u = second.u + first.model.mu * (h_ij / first.u - 1) * (first.u - second.u)
-
-            # adj to bounds 
-            if second.new_x > 1:
-                second.new_x = 1
-            elif second.new_x < -1:
-                second.new_x = -1
+            second.x_change += self.mu_fact_coef * (h_ij / first.u - 1) * (first.x - second.x)
+            second.u_change += self.mu_fact_coef * (h_ij / first.u - 1) * (first.u - second.u)
 
         if h_ij > second.u:
-            first.new_x = first.x + first.model.mu * (h_ij / second.u - 1) * (second.x - first.x)
-            first.new_u = first.u + first.model.mu * (h_ij / second.u - 1) * (second.u - first.u)
+
+            first.x_change += self.mu_fact_coef * (h_ij / second.u - 1) * (second.x - first.x)
+            first.u_change += self.mu_fact_coef * (h_ij / second.u - 1) * (second.u - first.u)
             
-            # adj to bounds 
-            if first.new_x > 1:
-                first.new_x = 1
-            elif first.new_x < -1:
-                first.new_x = -1
         
     def step(self):
         """Advance the model by one step."""
@@ -110,9 +115,18 @@ class PolicitalModel(Model):
             pairs = np.random.choice(
                 self.schedule.agents, size=(int(self.num_agents / 2), 2),replace=False
             )
-            # print([(i.unique_id, j.unique_id) for i, j in pairs])
-            for a1, a2 in pairs:
-                self.calculate_pair_update(a1, a2)
-        
-        self.schedule.step()
-        self.datacollector.collect(self)
+
+        else: 
+            pairs = combinations(self.schedule.agents, 2)
+
+        for a1, a2 in pairs:
+            self.calculate_pair_update(a1, a2)  
+
+        self.step_sum_change = np.sum([abs(i.x_change) for i in self.schedule.agents])
+
+        self.model_datacollector.collect(self) # collect changes for statistics 
+
+        self.schedule.step() # apply changes 
+
+        self.datacollector.collect(self) # collect agents data
+
