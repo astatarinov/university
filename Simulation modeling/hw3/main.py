@@ -21,7 +21,8 @@ class PoliticalAgent(Agent):
         self.u_change = 0
 
     def step(self):
-        
+
+        # changes are calculated by the model for all agents
         self.x += self.x_change
         self.u += self.u_change
 
@@ -41,7 +42,7 @@ class PoliticalAgent(Agent):
 
 
 class PolicitalModel(Model):
-    """A model with some number of agents."""
+    """An absolutely theoretical model"""
 
     def __init__(self, N, u=1.2, u_e=0.1, p_e=0.25, mu=0.5, delta=0, pairwise=True,
                   max_iter = 1000, change_threshold=1e-07, conv_check_periods_num=50):
@@ -63,6 +64,7 @@ class PolicitalModel(Model):
         self.pairwise = pairwise # random pairs on each step if True, 1 vs all otherwise
 
         # if "everyone with everyone", effect of each contact is multiplied on mu /(N-1) 
+        # (discussed at the seminar)
         self.mu_fact_coef = self.mu if self.pairwise else self.mu / (self.num_agents - 1)
 
         # Creating agents 
@@ -88,7 +90,7 @@ class PolicitalModel(Model):
             # Add the agent to the scheduler
             self.schedule.add(a)
 
-        self.datacollector = mesa.datacollection.DataCollector(agent_reporters={"X": "x", "Change": "x_change"})
+        self.datacollector = mesa.datacollection.DataCollector(agent_reporters={"X": "x"})
         self.datacollector.collect(self)
 
         self.step_sum_change = 0
@@ -119,12 +121,13 @@ class PolicitalModel(Model):
         """Advance the model by one step."""
 
         if self.pairwise:
-
+            # generates random pairs of agents to affect each other
             pairs = np.random.choice(
                 self.schedule.agents, size=(int(self.num_agents / 2), 2),replace=False
             )
 
         else: 
+            # generates all possible unique pairs between agents
             pairs = combinations(self.schedule.agents, 2)
 
         for a1, a2 in pairs:
@@ -141,7 +144,8 @@ class PolicitalModel(Model):
         self.datacollector.collect(self) # collect agents data
 
 
-    def run(self, progress_bar=False):
+    def run(self):
+        """Run until max_iter or stopping condition is achieved"""
 
         for _ in range(self.max_iter):
 
