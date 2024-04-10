@@ -3,6 +3,8 @@ import mesa
 import numpy as np
 from itertools import combinations
 from collections import deque
+import pandas as pd
+import matplotlib.pyplot as plt
 
 class PoliticalAgent(Agent):
     """An agent with fixed initial wealth."""
@@ -12,6 +14,9 @@ class PoliticalAgent(Agent):
         super().__init__(unique_id, model)
         
         assert x >= -1 and x <= 1, 'x must be in [-1, 1]'
+
+        self.initial_x = x
+        self.initial_u = u
         
         self.x = x # opinion
         self.u = u # uncertainty lvl
@@ -39,6 +44,15 @@ class PoliticalAgent(Agent):
     def __str__(self):
 
         return f"AgentId: {self.unique_id}, x: {self.x}, "
+    
+    def like_extremist(self):
+
+        if self.x <= self.model.P_NEG_BOUND:
+            return -1
+        elif self.x >= self.model.P_POS_BOUND:
+            return 1
+        else:
+            return 0
 
 
 class PolicitalModel(Model):
@@ -72,18 +86,19 @@ class PolicitalModel(Model):
 
         # suppose p_pos >= p_neg since we don't dif. extremist type
         # (discussed at the seminar)
+
         p_pos_div_p_neg = (1 + self.delta) / (1 - self.delta)                                                    
         p_neg = self.p_e / (1 + p_pos_div_p_neg)
         p_pos = self.p_e - p_neg
-
+        
         self.P_NEG_BOUND = np.quantile(x_array, p_neg)
         self.P_POS_BOUND = np.quantile(x_array, 1 - p_pos)
 
         # Create agents
         for i, x in enumerate(x_array):
-            if x <= self.P_NEG_BOUND:
+            if x < self.P_NEG_BOUND:
                 a = PoliticalAgent(i, self, x, self.u_e, extremist=True)
-            elif x >= self.P_POS_BOUND:
+            elif x > self.P_POS_BOUND:
                 a = PoliticalAgent(i, self, x, self.u_e, extremist=True)
             else:
                 a = PoliticalAgent(i, self, x, self.u)
@@ -154,3 +169,17 @@ class PolicitalModel(Model):
             if len(self.check_change_list)==self.conv_check_periods_num and \
             max(self.check_change_list) < self.change_threshold:
                 break
+
+    
+    def get_current_agents(self):
+        return (
+            pd.DataFrame([(i.x, i.like_extremist(), i.extremist) for i in self.agents],
+                          columns=['X', 'Extremist', 'Initial_extremist'])
+        )
+
+
+    def plot_dynamics(self):
+
+        data = self.datacollector.get_agent_vars_dataframe().T.stack().T
+        data.plot(legend=False)
+        plt.show();
