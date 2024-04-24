@@ -1,6 +1,7 @@
 import random
 import simpy
 import numpy as np
+import pandas as pd
 
 class Bank:
     def __init__(self, env, num_windows=1, type1_prob=0.75, max_time=5000, print_logs=True):
@@ -10,6 +11,7 @@ class Bank:
             0: {'time': 9, 'prob': type1_prob, 'bonus': 0.3, 'profit': 3, 'loss_cost': 1.1},
             1: {'time': 15, 'prob': 1 - type1_prob, 'bonus': 0.5, 'profit': 6, 'loss_cost': 2.5}
         }
+        self.interval = 10
         self.max_time = max_time
         self.env = env
         # self.queue = simpy.Store(self.env)
@@ -19,21 +21,20 @@ class Bank:
 
         self.MIN_PATIENCE = 1
         self.MAX_PATIENCE = 3
+        
         self.events = []
 
+        self.cost_per_window = 0.03
 
-    def run_until_time(self, max_iter=10):
-
-        try:
-            self.env.process(self.source(max_iter))
-            self.env.run(until=self.max_time)
-        except simpy.Interrupt:
-            return self.customer_visits_data
+    def run_until_time(self):
             
-        return self.customer_visits_data
+        self.env.process(self.source())
+        self.env.run(until=self.max_time)
+            
+        return self.fin_result()
 
 
-    def source(self, interval):
+    def source(self):
         """Source generates customers randomly"""
         customer_count = 0
         while True:
@@ -42,7 +43,7 @@ class Bank:
             )
             c = self.customer(name=f'Customer{customer_count}', task_type=task_type)
             self.env.process(c)
-            t = random.expovariate(1.0 / interval)
+            t = random.expovariate(1.0 / self.interval)
             yield self.env.timeout(t)
             customer_count += 1
             
@@ -69,16 +70,32 @@ class Bank:
                 yield self.env.timeout(random.expovariate(1.0 / time_in_bank))
     
                     
-            if self.print_logs:
-                print('%7.4f %s: Finished' % (self.env.now, name))
+                if self.print_logs:
+                    print('%7.4f %s: Finished' % (self.env.now, name))
+
                 self.events.append(("completed",
                                    self.service_types[task_type]['profit'],
-                                   self.service_types[task_type]['bonus']))
+                                   self.service_types[task_type]['bonus'], 
+                                   0, 
+                                   self.env.now),
+                                )
     
             else:
                 # We reneged
                 if self.print_logs:
                     print('%7.4f %s: RENEGED after %6.3f' % (self.env.now, name, wait))
 
-                self.events.append(("lost", self.service_types[task_type]['cost']))
+                self.events.append(("lost", 0, 0, self.service_types[task_type]['loss_cost'], self.env.now))
+
+
+    def fin_result(self):
+        # action, profit, bonus, loss, time
+
+        data = pd.DataFrame(self.events, columns=['action', 'profit', 'bonus', 'loss', 'time'])
+        totals = data[[ 'profit', 'bonus', 'loss',]].sum()
+
+        fixed_cost = self.cost_per_window * self.num_windows * self.env.now
+        net_profit = totals['profit'] + totals['bonus'] - totals['loss'] - fixed_cost
+
+        return net_profit
         
