@@ -94,8 +94,10 @@ class Bank:
         data = pd.DataFrame(self.events, columns=['action', 'profit', 'bonus', 'loss', 'time'])
         totals = data[[ 'profit', 'bonus', 'loss',]].sum()
 
+        # fixed cost as employees are paid hourly
         fixed_cost = self.cost_per_window * self.num_windows * self.env.now
-        net_profit = totals['profit'] + totals['bonus'] - totals['loss'] - fixed_cost
+
+        net_profit = totals['profit'] - totals['bonus'] - totals['loss'] - fixed_cost
 
         return net_profit
         
