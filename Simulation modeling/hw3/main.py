@@ -116,6 +116,7 @@ class PolicitalModel(Model):
         self.change_threshold = change_threshold
         self.conv_check_periods_num = conv_check_periods_num
         self.check_change_list = deque(maxlen=self.conv_check_periods_num)
+        self.run_iters = 0
 
     def calculate_pair_update(self, first: PoliticalAgent, second: PoliticalAgent):
 
@@ -162,9 +163,11 @@ class PolicitalModel(Model):
     def run(self):
         """Run until max_iter or stopping condition is achieved"""
 
-        for _ in range(self.max_iter):
+        for i in range(self.max_iter):
 
             self.step()
+
+            self.run_iters += 1
 
             if len(self.check_change_list)==self.conv_check_periods_num and \
             max(self.check_change_list) < self.change_threshold:
@@ -176,6 +179,14 @@ class PolicitalModel(Model):
             pd.DataFrame([(i.x, i.like_extremist(), i.extremist) for i in self.agents],
                           columns=['X', 'Extremist', 'Initial_extremist'])
         )
+
+
+    def get_y(self):
+        """Returns y = p_e_neg**2 + p_e_pos**2 """
+
+        df = self.get_current_agents()['Extremist'].value_counts(normalize=True).to_dict()
+
+        return df.get(-1, 0)**2 + df.get(1, 0)**2 
 
 
     def plot_dynamics(self):
