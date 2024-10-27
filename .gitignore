@@ -3,4 +3,6 @@
 **__pycache__
 **.tsv
 **.tfevents
+wandb
+**/hw2/data
 .DS_Store
