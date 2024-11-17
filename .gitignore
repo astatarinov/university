@@ -5,4 +5,8 @@
 **.tfevents
 wandb
 **/hw2/data
-.DS_Store
+**/.DS_Store
+NLP/hw1/data/
+NLP/hw1/csv_data/
+NLP/hw1/**.bin
+**/myenv
